@@ -1,0 +1,238 @@
+# Arch-tan animated plymouth theme bootup script
+
+DIALOG_MAX_BULLETS = 32;
+BOOTUP_ANIMATION_FRAMES = 91;
+SHUTDOWN_ANIMATION_FRAMES = 91;
+PROGRESS_MAX_WIDTH = 400;
+PROGRESS_HEIGHT = 8;
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+CURRENT_MODE = Plymouth.GetMode();
+
+#----------------------------------------- Arch Logo --------------------------------
+
+logo_image = Image("special://logo");
+logo = Sprite(logo_image);
+logo.SetPosition(
+  Window.GetX() + Window.GetWidth() / 2 - logo_image.GetWidth() / 2,
+  Window.GetY() + Window.GetHeight() / 20,
+  1
+);
+
+if (CURRENT_MODE != "boot") {
+  logo.SetOpacity(0);
+}
+
+#----------------------------------------- Dialogue --------------------------------
+
+status = "normal";
+
+fun dialog_setup(prompt) {
+  global.dialog;
+
+  dialog.prompt_image = Image.Text(prompt, 0.6, 0.6, 0.6, 1, "Fixed", "center");
+  dialog.bullet_image = Image.Text("*", 0.6, 0.6, 0.6);
+  dialog.active_bullet_index = 0;
+
+  dialog.prompt = Sprite(dialog.prompt_image);
+  dialog.prompt.SetPosition(
+      Window.GetX() + Window.GetWidth() / 2 - dialog.prompt_image.GetWidth() / 2,
+      Window.GetY() + Window.GetHeight() - Window.GetHeight() / 9 - dialog.prompt_image.GetHeight() / 2, 
+      10
+      );
+
+  if (global.status == "password") {
+    dialog.bullets = [];
+    for (i = 0; i < DIALOG_MAX_BULLETS; i++) {
+      dialog.bullets[i] = Sprite(dialog.bullet_image);
+
+      /*
+         Positioning components of password bullet sprites:
+         1. + dialog.prompt => relative to the prompt sprite,
+         2. + dialog.prompt_image.width / 2 => push to the middle of prompt sprite horizontally,
+         3. + dialog.prompt_image.height => push to the end of the prompt sprite vertically,
+         4. - DIALOG_MAX_BULLETS * dialog.bullet_image.width / 2 => pull so that bullets are centered horizontally,
+         5. + i * dialog.bullet_image.GetWidth() => push each bullet further to prevent rendering of bullets on top of each other.
+       */
+      dialog.bullets[i].SetPosition(
+          dialog.prompt.GetX() + dialog.prompt_image.GetWidth() / 2 - DIALOG_MAX_BULLETS * dialog.bullet_image.GetWidth() / 2 + i * dialog.bullet_image.GetWidth(),
+          dialog.prompt.GetY() + dialog.prompt_image.GetHeight() + dialog.bullet_image.GetHeight(),
+          10
+          );
+      dialog.bullets[i].SetOpacity(0);
+    }
+  } else {
+    dialog.content = Sprite();
+  }
+}
+
+fun recalc_dialog_content_pos() {
+  global.dialog.content.SetPosition(
+      dialog.prompt.GetX() + dialog.prompt_image.GetWidth() / 2 - dialog.content_image.GetWidth() / 2,
+      dialog.prompt.GetY() + dialog.prompt_image.GetHeight() + 1,
+      10
+      );
+}
+
+#----------------------------------------- Progress Bar --------------------------------
+
+fun setup_progress_bar() {
+  global.progress;
+
+  progress.background_image = Image.Text(".", 0.5, 0.5, 0.5, 1, "Fixed", "center");
+  progress.bar_image = Image.Text(".", 0.1, 0.8, 0.9, 1, "Fixed", "center");
+
+  progress.background = Sprite(progress.background_image.Scale(PROGRESS_MAX_WIDTH, PROGRESS_HEIGHT));
+  progress.bar = Sprite(progress.bar_image.Scale(0, PROGRESS_HEIGHT));
+
+  progress.background.SetPosition(
+      Window.GetX() + Window.GetWidth() / 2 - PROGRESS_MAX_WIDTH / 2,
+      Window.GetY() + 8 * Window.GetHeight() / 9 + 100,
+      20
+      );
+
+  progress.bar.SetPosition(
+      progress.background.GetX(),
+      progress.background.GetY(),
+      progress.background.GetZ() + 1
+      );
+
+  if (CURRENT_MODE != "boot") {
+    progress.background.SetOpacity(0);
+    progress.bar.SetOpacity(0);
+  }
+}
+
+#----------------------------------------- Animation Frame Buffer --------------------------------
+
+fun setup_animated_arch_tan() {
+  global.animation;
+
+  # Animation buffer
+  animation.frames = [];
+
+  # Filling the animation buffer
+  if (Plymouth.GetMode() == "boot") {
+    Plymouth.SetRefreshRate(18);
+    animation.number_of_frames = BOOTUP_ANIMATION_FRAMES;
+    for (i = 0; i < animation.number_of_frames; i++) {
+      animation.frames[i] = Image("bootup-" + i + ".png");
+    }
+  } else {
+    Plymouth.SetRefreshRate(24);
+    animation.number_of_frames = SHUTDOWN_ANIMATION_FRAMES;
+    for (i = 0; i < animation.number_of_frames; i++) {
+      animation.frames[i] = Image("shutdown-" + i + ".png");
+    }
+  }
+
+  animation.current_frame = Sprite();
+  animation.current_frame_index = 0;
+
+  animation.current_frame.SetPosition(
+      Window.GetX() + Window.GetWidth() / 2 - animation.frames[0].GetWidth() / 2,
+      Window.GetY() + Window.GetHeight() / 2 - animation.frames[0].GetHeight() / 2,
+      1,
+      );
+}
+
+#----------------------------------------- Hooks --------------------------------
+
+fun display_normal_callback() {
+  global.status = "normal";
+
+  if (global.dialog) {
+    global.dialog.prompt = null;
+    global.dialog.bullets = null;
+    global.dialog.content_image = null;
+    global.dialog.content = null;
+    global.dialog = null;
+  }
+}
+
+fun display_boot_progress(duration, current_progress) {
+  if (!global.progress) {
+    setup_progress_bar();
+  }
+
+  global.progress.current_width = current_progress * PROGRESS_MAX_WIDTH;
+
+  if (global.progress.current_width > 0 && global.progress.current_width < 1) {
+    global.progress.current_width = 1
+  }
+
+  global.progress.bar_image = global.progress.bar_image.Scale(global.progress.current_width, PROGRESS_HEIGHT);
+  global.progress.bar.SetImage(global.progress.bar_image);
+}
+
+fun display_password_callback(prompt, bullet_number) {
+  global.status = "password";
+
+  if (!global.dialog) {
+    dialog_setup(prompt);
+  }
+
+# Avoid calculations if the number of bullets hasn't changed
+  if (global.dialog.bullet_number != bullet_number) {
+    global.dialog.bullet_number = bullet_number;
+    global.dialog.active_bullet_index = bullet_number % DIALOG_MAX_BULLETS;
+
+    for (i = 0; i < DIALOG_MAX_BULLETS; i++) {
+      if (i < global.dialog.active_bullet_index) {
+        global.dialog.bullets[i].SetOpacity(1);
+      } else {
+        global.dialog.bullets[i].SetOpacity(0);
+      }
+    }
+  }
+}
+
+fun display_question_callback(prompt, content) {
+  global.status = "question";
+
+  if (!global.dialog) {
+    dialog_setup(prompt);
+  }
+
+  if (content == "") {
+    global.dialog.content_image = Image.Text(">_", 0.6, 0.6, 0.6, 1, "Fixed", "center");
+  } else {
+    global.dialog.content_image = Image.Text(content, 0.6, 0.6, 0.6, 1, "Fixed", "center");
+  }
+
+  global.dialog.content.SetImage(global.dialog.content_image);
+  recalc_dialog_content_pos();
+}
+
+fun display_message_callback(text) {
+  global.status = "message";
+
+  if (!global.dialog) {
+    dialog_setup("");
+  }
+
+  global.dialog.content_image = Image.Text(text, 1, 1, 1);
+  global.dialog.content.SetImage(global.dialog.content_image);
+  recalc_dialog_content_pos();
+}
+
+fun refresh_callback() {
+  if (!global.animation) {
+    setup_animated_arch_tan();
+  }
+
+  global.animation.current_frame.SetImage(global.animation.frames[global.animation.current_frame_index]);
+
+  if (global.animation.current_frame_index < global.animation.number_of_frames) {
+    global.animation.current_frame_index++;
+  }
+}
+
+Plymouth.SetBootProgressFunction(display_boot_progress);
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetDisplayQuestionFunction(display_question_callback);
+Plymouth.SetDisplayMessageFunction(display_message_callback);
+Plymouth.SetRefreshFunction(refresh_callback);
