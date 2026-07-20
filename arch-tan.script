@@ -11,20 +11,6 @@ Window.SetBackgroundBottomColor(0, 0, 0);
 
 CURRENT_MODE = Plymouth.GetMode();
 
-#----------------------------------------- Arch Logo --------------------------------
-
-logo_image = Image("special://logo");
-logo = Sprite(logo_image);
-logo.SetPosition(
-  Window.GetX() + Window.GetWidth() / 2 - logo_image.GetWidth() / 2,
-  Window.GetY() + Window.GetHeight() / 20,
-  1
-);
-
-if (CURRENT_MODE != "boot") {
-  logo.SetOpacity(0);
-}
-
 #----------------------------------------- Dialogue --------------------------------
 
 status = "normal";

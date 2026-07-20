@@ -4,6 +4,6 @@ Description=Arch-tan anime girl with cyan coloring
 ModuleName=script
 
 [script]
-ImageDir=/usr/share/plymouth/themes//arch-tan/frames
+ImageDir=/usr/share/plymouth/themes//arch-tan/assets/frames
 ConsoleLogBackgroundColor=0x00000000
 ScriptFile=/usr/share/plymouth/themes//arch-tan/arch-tan.script
