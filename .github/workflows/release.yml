@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-slim
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: GitHub Release
+        run: softprops/action-gh-release@v3.0
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
