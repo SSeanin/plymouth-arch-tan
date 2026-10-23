@@ -1,10 +1,25 @@
-# Arch-tan animated plymouth theme bootup script
+# Arch-tan animated plymouth theme script
+# Copyright (c) 2026 Saeed Andalib.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 DIALOG_MAX_BULLETS = 32;
 BOOTUP_ANIMATION_FRAMES = 91;
 SHUTDOWN_ANIMATION_FRAMES = 91;
 PROGRESS_MAX_WIDTH = 400;
 PROGRESS_HEIGHT = 8;
+PASSWORD_MAX_WIDTH = 256;
 
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
@@ -31,24 +46,8 @@ fun dialog_setup(prompt) {
 
   if (global.status == "password") {
     dialog.bullets = [];
-    for (i = 0; i < DIALOG_MAX_BULLETS; i++) {
-      dialog.bullets[i] = Sprite(dialog.bullet_image);
-
-      /*
-         Positioning components of password bullet sprites:
-         1. + dialog.prompt => relative to the prompt sprite,
-         2. + dialog.prompt_image.width / 2 => push to the middle of prompt sprite horizontally,
-         3. + dialog.prompt_image.height => push to the end of the prompt sprite vertically,
-         4. - DIALOG_MAX_BULLETS * dialog.bullet_image.width / 2 => pull so that bullets are centered horizontally,
-         5. + i * dialog.bullet_image.GetWidth() => push each bullet further to prevent rendering of bullets on top of each other.
-       */
-      dialog.bullets[i].SetPosition(
-          dialog.prompt.GetX() + dialog.prompt_image.GetWidth() / 2 - DIALOG_MAX_BULLETS * dialog.bullet_image.GetWidth() / 2 + i * dialog.bullet_image.GetWidth(),
-          dialog.prompt.GetY() + dialog.prompt_image.GetHeight() + dialog.bullet_image.GetHeight(),
-          10
-          );
-      dialog.bullets[i].SetOpacity(0);
-    }
+    dialog.bullet_number = 0;
+    dialog.max_bullets_created = -1;
   } else {
     dialog.content = Sprite();
   }
@@ -60,6 +59,55 @@ fun recalc_dialog_content_pos() {
       dialog.prompt.GetY() + dialog.prompt_image.GetHeight() + 1,
       10
       );
+}
+
+fun recalc_password_bullets_pos() {
+  global.dialog;
+
+  bullet_width = dialog.bullet_image.GetWidth();
+  bullet_height = dialog.bullet_image.GetHeight();
+
+  max_bullets_per_line = PASSWORD_MAX_WIDTH / bullet_width;
+  max_bullets_per_line = Math.Int(max_bullets_per_line);
+
+  if (max_bullets_per_line < 1) {
+    max_bullets_per_line = 1;
+  }
+
+  first_line_count = dialog.bullet_number;
+
+  if (first_line_count > max_bullets_per_line) {
+    first_line_count = max_bullets_per_line;
+  }
+
+  second_line_count = dialog.bullet_number - first_line_count;
+
+  for (i = 0; i <= dialog.max_bullets_created; i++) {
+    if (i < dialog.bullet_number) {
+      if (i < first_line_count) {
+        line_index = i;
+        line_count = first_line_count;
+        line_number = 0;
+      } else {
+        line_index = i - first_line_count;
+        line_count = second_line_count;
+        line_number = 1;
+      }
+
+      dialog.bullets[i].SetPosition(
+          Window.GetX() + Window.GetWidth() / 2
+            - line_count * bullet_width / 2
+            + line_index * bullet_width,
+          dialog.prompt.GetY() + dialog.prompt_image.GetHeight()
+            + bullet_height + line_number * bullet_height,
+          10
+          );
+
+      dialog.bullets[i].SetOpacity(1);
+    } else {
+      dialog.bullets[i].SetOpacity(0);
+    }
+  }
 }
 
 #----------------------------------------- Progress Bar --------------------------------
@@ -132,6 +180,7 @@ fun display_normal_callback() {
   if (global.dialog) {
     global.dialog.prompt = null;
     global.dialog.bullets = null;
+    global.dialog.bullet_number = 0;
     global.dialog.content_image = null;
     global.dialog.content = null;
     global.dialog = null;
@@ -160,19 +209,16 @@ fun display_password_callback(prompt, bullet_number) {
     dialog_setup(prompt);
   }
 
-# Avoid calculations if the number of bullets hasn't changed
-  if (global.dialog.bullet_number != bullet_number) {
-    global.dialog.bullet_number = bullet_number;
-    global.dialog.active_bullet_index = bullet_number % DIALOG_MAX_BULLETS;
+  global.dialog.bullet_number = bullet_number;
 
-    for (i = 0; i < DIALOG_MAX_BULLETS; i++) {
-      if (i < global.dialog.active_bullet_index) {
-        global.dialog.bullets[i].SetOpacity(1);
-      } else {
-        global.dialog.bullets[i].SetOpacity(0);
-      }
+  for (i = 0; i < bullet_number; i++) {
+    if (i > global.dialog.max_bullets_created) {
+      global.dialog.bullets[i] = Sprite(global.dialog.bullet_image);
+      global.dialog.max_bullets_created = i;
     }
   }
+
+  recalc_password_bullets_pos();
 }
 
 fun display_question_callback(prompt, content) {
