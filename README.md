@@ -1,6 +1,4 @@
 # A Minimal Plymouth Boot/Shutdown Splash featuring Arch-tan
-
-## 📸 Preview
 | Startup | Shutdown |
 | -------------- | --------------- |
 | https://github.com/user-attachments/assets/6d227347-ba45-4198-bd1e-e7ffb2eca49e | https://github.com/user-attachments/assets/cf99885d-4371-4041-85bc-a59fca86cfba |
