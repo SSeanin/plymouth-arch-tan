@@ -48,3 +48,6 @@ Do this for `plymouth-reboot.service` as well.
 ### Animation frames missing
 Check out the `arch-tan.plymouth` file and make sure that all the paths are correct and available.
 I recommend checking [plymouth page on the arch wiki](https://wiki.archlinux.org/title/Plymouth) as it contains some very useful information.
+
+## Credits
+The original Arch-tan character was originally created by [Ravimo](https://www.pixiv.net/en/users/60562229). I just took my sweet time bringing it to life by animations.
